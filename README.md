@@ -32,6 +32,20 @@ cd chimera && bun install && bun run dev       # puis http://127.0.0.1:5317/?sho
 enregistrés (`.tele`) et les paroles des quatre meneurs. `bun tools/check_show.ts <dossier>`
 l'ouvre dans Edge sans affichage et prend des captures.
 
+### La vidéo
+
+Le serveur de CHIMERA doit tourner, et il faut ffmpeg (`.venv/Scripts/pip install imageio-ffmpeg`).
+
+```sh
+bun tools/make_video.ts out/banquet.mp4 --gpu      # 1920×1080, 30 i/s, ~8 min de calcul
+```
+
+La page est calculée image par image : l'horloge audio est remplacée par `performance.now()`, que
+l'horloge simulée de Playwright fait avancer de 1/30 s entre deux captures. Les têtes, les mots et
+le mixage restent synchrones, quelle que soit la vitesse de calcul. Options : `--fps`, `--size`,
+`--from`/`--to` (en secondes) pour un extrait, `--probe` pour suivre le temps de la page, et
+`--gpu` pour utiliser la carte graphique (sinon, rendu logiciel SwiftShader, plus lent).
+
 ## Ce qui est fait
 
 - **`tools/patch_chimera.py`** complète CHIMERA (testé sur le commit `59d1e81`). Depuis le
