@@ -598,7 +598,8 @@ def export_show(out, starts, beat, refrains=None, end=None):
         if name != "flute":
             shutil.copy(REN / f"{name}.tele", d / f"{name}.tele")
             shutil.copy(REN / f"{name}.json", d / f"{name}.json")
-        guests.append({"name": shown, "tele": f"{name}.tele", "melody": f"{name}.json", "seat": seat, "costume": costume, "tunic": tunic, "words": words})
+        guests.append({"name": shown, "tele": f"{name}.tele", "melody": f"{name}.json", "seat": seat, "costume": costume, "tunic": tunic, "words": words,
+                       "mug": seat["z"] != BACK})  # debout au 2e rang : pas de chope (elle passait dans les têtes)
     show = {"title": "Chanson à boire — G. Bataille", "audio": "banquet.wav", "bpm": 60 / beat, "downbeat": starts[0], "voices": voices,
             "guests": guests, "table": TABLE_SPEC, "cues": table_cues(refrains or [], beat, end or 0)}
     (d / "show.json").write_text(json.dumps(show, ensure_ascii=False, indent=1), encoding="utf-8")
