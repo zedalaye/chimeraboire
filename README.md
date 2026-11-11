@@ -58,7 +58,8 @@ le mixage restent synchrones, quelle que soit la vitesse de calcul. Options : `-
   - `render speech` accepte la variable d'environnement `CHIMERA_F0` (hauteur) ;
   - la page Duet affiche le texte `"words"` du fichier mélodie au lieu de passer par le dictionnaire anglais ;
   - la respiration entre deux phrases laisse la place aux consonnes d'attaque de la suivante ;
-  - une consonne marquée longue (`lː`) garde sa durée dans le chant.
+  - une consonne marquée longue (`lː`) garde sa durée dans le chant ;
+  - dans une note courte, la voyelle garde au moins 55 % du temps (« dis-courir » et non « disss-courir »).
 
   Seul `songs_match_typescript` échoue, ce qui est attendu : la respiration modifiée déplace les
   fins de phrase des chansons de référence.

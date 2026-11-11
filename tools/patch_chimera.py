@@ -49,6 +49,15 @@ const NASAL_OPEN_VOWEL_PORT: f64 = 0.25;"""),
 ])
 
 patch(PH + "sing.rs", [
+    # dans une note courte, la voyelle garde au moins 55 % du temps et les consonnes se serrent dans
+    # le reste, comme le fait un chanteur : sinon « dis- » (une croche) donnait 70 ms de [i] et
+    # 150 ms de [s], « disssscourir »
+    ("""    let room = span - MIN_VOWEL;""",
+     """    let room = span - js_max(MIN_VOWEL, SUNG_VOWEL_SHARE * span);"""),
+    ("""const MIN_VOWEL: f64 = 0.05;""",
+     """const MIN_VOWEL: f64 = 0.05;
+/// and at least this share of its span (chimeraboire)
+const SUNG_VOWEL_SHARE: f64 = 0.55;"""),
     # une consonne marquée longue en IPA (« lː ») garde sa durée : un « L' » en début de phrase
     # chanté à la durée par défaut passait inaperçu
     ("""    segs.iter().map(|c| Segment { ipa: c.ipa.clone(), dur: Some(cdur(&c.ipa, body, k)), aspirated""",
