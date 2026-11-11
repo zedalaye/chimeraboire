@@ -86,5 +86,6 @@ le mixage restent synchrones, quelle que soit la vitesse de calcul. Options : `-
     dans le spectacle 3D ;
   - couplets 1 et 3 chantés par les seuls meneurs, enchaînés sans pause ;
   - le banquet dans les refrains : choppes sur « bou-te », gobelets sur « ce verre », cris sur
-    les notes tenues, brouhaha parlé par CHIMERA ;
+    les notes tenues, gobelets sur « rempli-rons » (pas sur « verre », dont ils brouillaient le « è »),
+    brouhaha parlé par CHIMERA ;
   - feu de cheminée, gobelets et salle en pierre, tous synthétisés.

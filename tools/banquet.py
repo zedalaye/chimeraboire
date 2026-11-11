@@ -474,7 +474,7 @@ def mix():
         if k == 1:
             for b in (6, 14):
                 thumps(at(R, b), r.randint(2, 4), 0.38)
-        clinks(at(R, 18), r.randint(3, 6) if not first else 2)  # « ce verre »
+        clinks(at(R, 22.2), r.randint(3, 6) if not first else 2)  # sur « rem-pli-rons. » (sur « verre », le tintement brouillait le « è »)
         if k == 0 and v >= 2:
             shout(r.choice(["he", "hola"]), at(R, 6.4), g=0.42)
         if k == 1 and v in (2, 4):
