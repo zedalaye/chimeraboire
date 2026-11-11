@@ -32,12 +32,29 @@ cd chimera && bun install && bun run dev       # puis http://127.0.0.1:5317/?sho
 enregistrés (`.tele`) et les paroles des quatre meneurs. `bun tools/check_show.ts <dossier>`
 l'ouvre dans Edge sans affichage et prend des captures.
 
+### La tablée
+
+**http://127.0.0.1:5317/?table=banquet** montre toute la tablée dans une seule scène 3D, vue
+par un convive debout près d'un coin de la table, en légère plongée :
+- les 11 convives et le petit flûtiste, coiffés (hennin, coiffe, tonsure, chaperons, chapeaux,
+  capuche, cheveux, bonnet) et habillés d'une tunique de leur couleur ;
+- une table à tréteaux, des bancs, des chandelles qui vacillent ;
+- des chopes qui frappent la table sur « bou-te » et se lèvent pour trinquer sur « rempli-rons ».
+
+Le code est dans `stage/` : `TablePage.tsx` pour la scène, `tavern.ts` pour le décor et les
+gestes, `costumes.ts` pour les coiffes. `patch_chimera.py` le copie dans `chimera/src/stage/`.
+Les têtes sont celles de CHIMERA, sans modification : la caméra commune est exprimée dans le
+repère de chaque siège, et les têtes sont dessinées l'une après l'autre dans la même image. La
+distribution (sièges, costumes, tuniques) et le cadrage se règlent dans `tools/banquet.py`
+(`TABLE_GUESTS`, `TABLE_SPEC`).
+
 ### La vidéo
 
 Le serveur de CHIMERA doit tourner, et il faut ffmpeg (`.venv/Scripts/pip install imageio-ffmpeg`).
 
 ```sh
 bun tools/make_video.ts out/banquet.mp4 --gpu      # 1920×1080, 30 i/s, ~8 min de calcul
+bun tools/make_video.ts out/tablee.mp4 --gpu --table   # la tablée, ~14 min
 ```
 
 La page est calculée image par image : l'horloge audio est remplacée par `performance.now()`, que

@@ -71,6 +71,33 @@ const SUNG_VOWEL_SHARE: f64 = 0.55;"""),
         };"""),
 ])
 
+# la tablée (`?table=<id>`) : nos fichiers stage/ copiés dans src/stage/, et une route à côté de
+# celle de la page Duet
+import shutil
+stage_src = pathlib.Path(__file__).resolve().parent.parent / "stage"
+(root / "src" / "stage").mkdir(exist_ok=True)
+for f in stage_src.glob("*.ts*"):
+    shutil.copy(f, root / "src" / "stage" / f.name)
+print("ok src/stage/ (" + ", ".join(f.name for f in stage_src.glob("*.ts*")) + ")")
+patch("src/ui/App.tsx", [
+    ("""/** the show to play, from `?show=<id>` (a plain folder name under public/shows) */""",
+     """// la tablée (`?table=<id>`) : les voix d'un spectacle autour d'une table (chimeraboire)
+const TablePage = lazy(() => import("../stage/TablePage.tsx").then((m) => ({ default: m.TablePage })));
+
+/** the show to play, from `?show=<id>` (a plain folder name under public/shows) */"""),
+    ("""  const show = showId();
+  if (show)""",
+     """  const table = new URLSearchParams(window.location.search).get("table");
+  if (table && /^[\\w-]+$/.test(table))
+    return (
+      <Suspense fallback={null}>
+        <TablePage id={table} />
+      </Suspense>
+    );
+  const show = showId();
+  if (show)"""),
+])
+
 patch("crates/chimera-cli/src/render.rs", [
     ("""    let f0 = match body_name {
         "female" => 200.0,

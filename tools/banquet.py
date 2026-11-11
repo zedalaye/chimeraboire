@@ -43,6 +43,27 @@ SINGERS = [
     ("mathieu",    "basse",     0, "male",     7, 0.025, 0.018, 14, -0.80, 0.90, False, None),
 ]
 VERSES = [1, 2, 3, 4]
+
+# ------------------------------------------------------------------ la tablée (?table=banquet)
+# la table (cm) et le regard d'un convive debout près du coin avant droit, à quelques pas
+TABLE_SPEC = {"length": 300, "depth": 90, "camera": {"pos": [135, 60, 205], "target": [-22, -22, -48], "fov": 38}}
+FAR, BACK, END = -67, -112, -180  # le banc du fond, le 2e rang (debout derrière), le bout de la table
+STAND = 24  # debout : la glotte 24 cm plus haut qu'assis
+# nom : (nom affiché, siège {x, z, y?, look?}, coiffe, tunique, paroles à la bouche)
+TABLE_GUESTS = {
+    "robin":       ("Robin",              {"x": -125, "z": FAR}, {"kind": "chapeau", "color": "green"}, "green", False),
+    "alienor":     ("Dame Aliénor",       {"x": -75, "z": FAR}, {"kind": "hennin", "color": "pink"}, "pink", True),
+    "perrine":     ("Perrine",            {"x": -25, "z": FAR}, {"kind": "coiffe", "color": "white"}, "green", True),
+    "jehan":       ("Frère Jehan",        {"x": 25, "z": FAR}, {"kind": "tonsure", "color": "amber"}, "amber", True),
+    "enguerrand":  ("Messire Enguerrand", {"x": 75, "z": FAR}, {"kind": "chaperon", "color": "red"}, "red", True),
+    "hugues":      ("Hugues",             {"x": 125, "z": FAR}, {"kind": "cheveux", "color": "amber"}, "blue", False),
+    "guillemette": ("Guillemette",        {"x": -100, "z": BACK, "y": STAND}, {"kind": "coiffe", "color": "white"}, "blueMid", False),
+    "colin":       ("Colin",              {"x": 0, "z": BACK, "y": STAND}, {"kind": "cheveux", "color": "amber"}, "blue", False),
+    "gauthier":    ("Gauthier",           {"x": 100, "z": BACK, "y": STAND}, {"kind": "chapeau", "color": "red", "tilt": 0.35}, "amber", False),
+    "thibaut":     ("Thibaut",            {"x": END, "z": -28, "look": [0, 0, -5]}, {"kind": "capuche", "color": "blueMid"}, "blueMid", False),
+    "mathieu":     ("Mathieu",            {"x": END, "z": 12, "look": [0, 0, 30]}, {"kind": "chaperon", "color": "green"}, "green", False),
+    "flute":       ("Le petit flûtiste",  {"x": -192, "z": -78, "y": -6}, {"kind": "bonnet", "color": "green", "flute": True}, "blue", True),
+}
 COUPLET, REFRAIN = 32, 24  # en noires
 BABBLE_BEATS = 10  # 5 s de brouhaha (à 120) avant que les ménestrels n'attaquent
 PRELUDE_BEATS = REFRAIN  # les ménestrels jouent le refrain seuls, puis la tablée entre
@@ -232,8 +253,8 @@ def render_all():
     jobs = []
     for s in SINGERS:
         wav = REN / f"{s[0]}.wav"
-        if not wav.exists():
-            tele = ["--tele", str(REN / f"{s[0]}.tele")] if s[10] else []
+        if not wav.exists() or not (REN / f"{s[0]}.tele").exists():
+            tele = ["--tele", str(REN / f"{s[0]}.tele")]  # (tous : la tablée les montre tous)
             jobs.append((["render", "notes", str(singer_json(s)), str(wav.with_suffix("")), s[3], *tele], None))
     # les ménestrels
     if not (REN / "flute.wav").exists():
@@ -542,12 +563,25 @@ def mix(dest=None, show=True):
     for ext in ("wav", "flac"):  # (pas d'OGG : libsndfile plante sur les longs fichiers Vorbis)
         sf.write(str(ROOT / "out" / f"banquet.{ext}"), out.astype(np.float32), SR, subtype="PCM_16")
     if show:
-        export_show(out, starts, beat)
+        export_show(out, starts, beat, refrains, end)
     print(f"out/banquet.wav ({total:.0f} s) ; couplets à " + ", ".join(f"{t:.0f} s" for t in starts))
 
 
-def export_show(out, starts, beat):
-    """la page Duet de CHIMERA : le flûtiste et les quatre meneurs en 3D sur le mixage"""
+def table_cues(refrains, beat, end):
+    """les gestes de la tablée, calés sur la musique (les mêmes instants que les choppes du mixage)"""
+    bump, toast = [], []
+    for v, k, R in refrains:
+        if not (v == 1 and k == 0):  # au tout premier refrain, on écoute encore
+            bump += [R + b * beat for b in (8, 9, 10, 12, 13)]
+        if k == 1:
+            bump += [R + b * beat for b in (6, 14)]
+            toast.append([R + 22 * beat, R + 24 * beat + 0.2])  # sur « rem-pli-rons. »
+    toast.append([end + 0.3, end + 4.0])  # et à la fin
+    return {"bump": [round(t, 3) for t in sorted(bump)], "toast": [[round(a, 3), round(b, 3)] for a, b in toast]}
+
+
+def export_show(out, starts, beat, refrains=None, end=None):
+    """la page Duet de CHIMERA (le flûtiste et les quatre meneurs) et la tablée (tout le monde)"""
     d = ROOT / "chimera" / "public" / "shows" / "banquet"
     d.mkdir(parents=True, exist_ok=True)
     sf.write(str(d / "banquet.wav"), out.astype(np.float32), SR, subtype="PCM_16")
@@ -559,7 +593,14 @@ def export_show(out, starts, beat):
             shutil.copy(REN / f"{s[0]}.tele", d / f"{s[0]}.tele")
             shutil.copy(REN / f"{s[0]}.json", d / f"{s[0]}.json")
             voices.append({"name": s[11], "tele": f"{s[0]}.tele", "melody": f"{s[0]}.json"})
-    show = {"title": "Chanson à boire — G. Bataille", "audio": "banquet.wav", "bpm": 60 / beat, "downbeat": starts[0], "voices": voices}
+    guests = []
+    for name, (shown, seat, costume, tunic, words) in TABLE_GUESTS.items():
+        if name != "flute":
+            shutil.copy(REN / f"{name}.tele", d / f"{name}.tele")
+            shutil.copy(REN / f"{name}.json", d / f"{name}.json")
+        guests.append({"name": shown, "tele": f"{name}.tele", "melody": f"{name}.json", "seat": seat, "costume": costume, "tunic": tunic, "words": words})
+    show = {"title": "Chanson à boire — G. Bataille", "audio": "banquet.wav", "bpm": 60 / beat, "downbeat": starts[0], "voices": voices,
+            "guests": guests, "table": TABLE_SPEC, "cues": table_cues(refrains or [], beat, end or 0)}
     (d / "show.json").write_text(json.dumps(show, ensure_ascii=False, indent=1), encoding="utf-8")
 
 

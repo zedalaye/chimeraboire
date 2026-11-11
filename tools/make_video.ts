@@ -1,6 +1,8 @@
 // La vidéo du banquet : la page Duet (?show=banquet) calculée image par image, avec le mixage.
 //
-//   bun tools/make_video.ts [sortie.mp4] [--fps 30] [--size 1920x1080] [--from 0] [--to fin] [--gpu]
+//   bun tools/make_video.ts [sortie.mp4] [--fps 30] [--size 1920x1080] [--from 0] [--to fin] [--gpu] [--table]
+//
+// --table : la tablée (?table=banquet) au lieu de la page Duet (?show=banquet).
 //
 // Il faut le serveur de CHIMERA (`bun run dev` dans chimera/) et ffmpeg (paquet Python
 // imageio-ffmpeg du .venv). Le temps de la page est piloté : l'horloge audio est remplacée par
@@ -56,7 +58,7 @@ await page.addInitScript(() => {
   });
 });
 await page.clock.install({ time: 0 });
-await page.goto("http://127.0.0.1:5317/?show=banquet");
+await page.goto(`http://127.0.0.1:5317/?${args.includes("--table") ? "table" : "show"}=banquet`);
 // le chargement : on fait avancer l'horloge jusqu'à ce que Play soit actif
 for (let i = 0; ; i++) {
   await page.clock.runFor(200);
@@ -78,7 +80,7 @@ const duration = await page.evaluate(() => {
 const to = toArg ? Number(toArg) : duration + 0.9;
 // l'horloge simulée court en temps réel tant qu'on ne la met pas en pause : figée, elle n'avance plus
 // que des pas de 1/fps (sinon le temps de chaque capture s'ajoutait et la page filait trop vite)
-await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 100);
+await page.clock.pauseAt((await page.evaluate(() => Date.now())) + 1000); // (une marge : une page lourde avance pendant l appel)
 // (clics en JavaScript : avec l'horloge simulée, Playwright attendrait des images qui ne viennent pas)
 await page.evaluate((t) => {
   (document.querySelector("button.primary") as HTMLButtonElement).click();
