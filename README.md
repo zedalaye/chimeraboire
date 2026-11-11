@@ -65,7 +65,7 @@ le mixage restent synchrones, quelle que soit la vitesse de calcul. Options : `-
 - **`tools/score_to_chimera.py`** lit la partition SATB et produit les fichiers pour CHIMERA :
   - il transcrit les paroles en IPA, avec enchaînements (sauf le « r », qui reste sur son mot),
     « e » muets chantés, « on » fermé (`õ`), « an » postérieur et arrondi (`ɒ̃`), « in »
-    central (`ɐ̃`), « è » ouvert (`æ`), p t k non aspirés (`˭`) et consonnes allongées
+    central (`ɐ̃`), « è » ouvert (`æ`), « eu » ouvert de « meure » et « heure » (`ɐʁ`), p t k non aspirés (`˭`) et consonnes allongées
     en début de phrase (`lː`) ;
   - il déroule les reprises : couplet n, puis refrain deux fois ;
   - il rétablit « Le » (couplet 2) et « Bu » (couplet 4), absents de la partition.

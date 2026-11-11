@@ -49,7 +49,10 @@ SYL = {k: v.replace("ɛ̃", "ɐ̃") for k, v in SYL.items()}
 # « vère », comparaison A/B/C sur « verre ») ; les « ɛ̃ » sont déjà devenus « ɐ̃ » ci-dessus
 SYL = {k: v.replace("ɛ", "æ") for k, v in SYL.items()}
 # syllabes dont la prononciation dépend du mot
-IN_WORD = {("bon-ne", 0): "bɔ", ("fil-les", 0): "fi", ("fil-les", 1): "jə"}
+IN_WORD = {("bon-ne", 0): "bɔ", ("fil-les", 0): "fi", ("fil-les", 1): "jə",
+           # « eu » ouvert devant r : notre /œ/ (F1 ≈ 490 Hz, presque un schwa) donnait « meuh » ;
+           # [ɐ] plus ouvert, avec le r gardé sur la syllabe, a été préféré à l'écoute (« meur-e »)
+           ("meu-re", 0): "mɐʁ", ("meu-re", 1): "ə", ("heu-re", 0): "ɐʁ", ("heu-re", 1): "ə"}
 
 FIRST_WORD = {"2": "Le", "4": "Bu"}
 
