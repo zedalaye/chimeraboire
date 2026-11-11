@@ -48,21 +48,22 @@ le mixage restent synchrones, quelle que soit la vitesse de calcul. Options : `-
 
 ## Ce qui est fait
 
-- **`tools/patch_chimera.py`** complète CHIMERA (testé sur le commit `59d1e81`). Depuis le
-  ticket #32, CHIMERA lit lui-même les voyelles nasales (`õ`, `ɑ̃`…) et les marques
-  d'aspiration (`k˭` non aspiré). Le patch ajoute :
-  - la semi-voyelle `ɥ` ;
+- **`tools/patch_chimera.py`** ajoute nos réglages à CHIMERA (testé sur le commit `1d3ea49`).
+  CHIMERA sait déjà, de lui-même, lire les marques IPA (nasales `õ` `ɒ̃`, non-aspiration `k˭`),
+  prononcer `ɥ`, et chanter des syllabes données en JSON (`"syllables"`, voir
+  `docs/language-front-ends.md`). Le patch ajoute :
   - une nasalisation plus légère (0,15 au lieu de 0,3), sinon le chœur sonne nasillard, sauf sur
     les voyelles ouvertes (0,25), sans quoi le « an » s'entend « a » ;
-  - `render notes` accepte `"syllables"` (une syllabe IPA par note) ;
-  - `render speech` accepte la variable d'environnement `CHIMERA_F0` (hauteur) ;
-  - la page Duet affiche le texte `"words"` du fichier mélodie au lieu de passer par le dictionnaire anglais ;
   - la respiration entre deux phrases laisse la place aux consonnes d'attaque de la suivante ;
-  - une consonne marquée longue (`lː`) garde sa durée dans le chant ;
-  - dans une note courte, la voyelle garde au moins 55 % du temps (« dis-courir » et non « disss-courir »).
+  - une consonne de durée donnée (`lː`) garde sa durée dans le chant ;
+  - dans une note courte, la voyelle garde au moins 55 % du temps (« dis-courir » et non
+    « disss-courir ») ;
+  - `render speech` accepte la variable d'environnement `CHIMERA_F0` (hauteur).
 
   Seul `songs_match_typescript` échoue, ce qui est attendu : la respiration modifiée déplace les
   fins de phrase des chansons de référence.
+- **`tools/ipa_syl.py`** convertit nos syllabes IPA (`k˭i`, `mɐʁ`, `lːo`…) au format de syllabes
+  de CHIMERA.
 - **`tools/score_to_chimera.py`** lit la partition SATB et produit les fichiers pour CHIMERA :
   - il transcrit les paroles en IPA, avec enchaînements (sauf le « r », qui reste sur son mot),
     « e » muets chantés, « on » fermé (`õ`), « an » postérieur et arrondi (`ɒ̃`), « in »

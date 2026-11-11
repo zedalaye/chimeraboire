@@ -16,6 +16,9 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import fftconvolve, butter, sosfilt, lfilter
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import ipa_syl  # noqa: E402  (nos syllabes IPA → le format de syllabes de CHIMERA)
+
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 EXE = ROOT / "chimera" / "target" / "release" / ("chimera.exe" if os.name == "nt" else "chimera")
 JSON = ROOT / "out" / "json"
@@ -86,11 +89,11 @@ def run(args, env=None):
 # ------------------------------------------------------------------ rendus CHIMERA
 def full_melody(part):
     """les 4 couplets d'une voix bout à bout, après l'intro (un silence)"""
-    notes, syls, words = [[0, INTRO_BEATS]], [], []
+    notes, ipa, words = [[0, INTRO_BEATS]], [], []
     for v in VERSES:
         d = json.loads((JSON / f"{part}-couplet{v}.json").read_text(encoding="utf-8"))
-        notes += d["notes"]; syls += d["syllables"]; words += d["words"]
-    return {"bpm": d["bpm"], "notes": notes, "syllables": syls, "words": words}
+        notes += d["notes"]; ipa += d["ipa"]; words += d["words"]
+    return {"bpm": d["bpm"], "notes": notes, "ipa": ipa, "syllables": ipa_syl.syllables(ipa, words)}
 
 
 def singer_json(s):
@@ -168,8 +171,8 @@ def flute_json():
         nxt = notes[i + 1][0] if i + 1 < len(notes) else 0
         syls.append(s + ("," if b >= 2 or nxt <= 0 else ""))
         prev = m
-    d = {"bpm": 120, "vibrato": 12, "t0": T0, "notes": [[round(m, 3), b] for m, b in notes], "syllables": syls,
-         "words": [s.rstrip(",") for s in syls]}
+    d = {"bpm": 120, "vibrato": 12, "t0": T0, "notes": [[round(m, 3), b] for m, b in notes], "ipa": syls,
+         "syllables": ipa_syl.syllables(syls, [s.rstrip(",") for s in syls])}
     p = REN / "flute.json"
     p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
     return p
@@ -185,7 +188,7 @@ def drone_json(name, midi, offset, cents):
         notes.append([round(midi + cents / 100, 3), b])
         t += b
         b = 16
-    d = {"bpm": 120, "vibrato": 0, "t0": T0, "notes": notes, "syllables": ["ũ,"] * (len(notes) - 1)}
+    d = {"bpm": 120, "vibrato": 0, "t0": T0, "notes": notes, "syllables": ipa_syl.syllables(["ũ,"] * (len(notes) - 1))}
     p = REN / f"{name}.json"
     p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
     return p

@@ -8,6 +8,9 @@ Usage : python tools/score_to_chimera.py score/chanson-a-boire-satb.musicxml out
 """
 import json, re, sys, pathlib, xml.etree.ElementTree as ET
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+import ipa_syl  # noqa: E402  (nos syllabes IPA → le format de syllabes de CHIMERA)
+
 STEP = {"C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11}
 VOICES = {"P1": "soprano", "P2": "alto", "P3": "tenor", "P4": "basse"}
 
@@ -200,7 +203,7 @@ def main():
         for v in verses:
             notes, syls, shown = build(measures, refrain_at, v)
             f = outdir / f"{name}-couplet{v}.json"
-            f.write_text(json.dumps({"bpm": bpm, "vibrato": 25, "notes": notes, "syllables": syls, "words": shown}, ensure_ascii=False), encoding="utf-8")
+            f.write_text(json.dumps({"bpm": bpm, "vibrato": 25, "notes": notes, "ipa": syls, "words": shown, "syllables": ipa_syl.syllables(syls, shown)}, ensure_ascii=False), encoding="utf-8")
             print(f"{f.name}: {len(notes)} notes, {sum(n[0] * 0 + n[1] for n in notes):g} temps | " + " ".join(syls[:14]) + " …")
 
 
