@@ -320,11 +320,21 @@ def biquad(x, kind, f0, gain_db, q=0.9):
     return lfilter(np.array(b) / a[0], np.array(a) / a[0], x, axis=0)
 
 
+# égalisation des voix (chœur, ménestrels, brouhaha) : (type, Hz, dB, Q)
+EQ_PRESETS = {
+    # la première : moins nasillard, mais tout le rendu sonnait étouffé (−4 dB de présence, +3 dB de grave)
+    "etouffe": [("peak", 1500, -5.0, 1.0), ("peak", 2600, -2.0, 1.4), ("lowshelf", 220, 3.0, None)],
+    # un léger creux anti-nasillard, de la présence vers 3,5 kHz, un grave allégé
+    "clair": [("peak", 1500, -2.5, 1.0), ("peak", 3500, 3.0, 0.8), ("lowshelf", 220, -1.5, None)],
+}
+EQ = "clair"  # préférée à l'écoute (comparaison A/B/C)
+
+
 def denasal(x):
-    """moins nasillard, plus chaud : creux vers 1,5 kHz, un peu de corps vers 200 Hz"""
-    x = biquad(x, "peak", 1500, -5.0, 1.0)
-    x = biquad(x, "peak", 2600, -2.0, 1.4)
-    return biquad(x, "lowshelf", 220, 3.0)
+    """l'égalisation des voix (EQ_PRESETS[EQ])"""
+    for kind, f0, db, q in EQ_PRESETS[EQ]:
+        x = biquad(x, kind, f0, db, q or 0.9)
+    return x
 
 
 def norm(x, peak=1.0):
@@ -397,7 +407,8 @@ def env_gain(n, points):
 
 
 # ------------------------------------------------------------------ mise en scène
-def mix():
+def mix(dest=None, show=True):
+    """le mixage, dans out/banquet.wav et .flac (ou dest, un .wav), et le spectacle 3D si show"""
     bpm = json.loads((JSON / "soprano-couplet1.json").read_text(encoding="utf-8"))["bpm"]
     beat = 60 / bpm
     verse_beats = COUPLET + 2 * REFRAIN
@@ -522,9 +533,13 @@ def mix():
     out = hp(out, 40)
     out *= env_gain(N, [(0, 0), (1.0, 1), (total - 2.5, 1), (total, 0)])[:, None]
     out = norm(out, 0.89)
+    if dest:
+        sf.write(str(dest), out.astype(np.float32), SR, subtype="PCM_16")
+        return out
     for ext in ("wav", "flac"):  # (pas d'OGG : libsndfile plante sur les longs fichiers Vorbis)
         sf.write(str(ROOT / "out" / f"banquet.{ext}"), out.astype(np.float32), SR, subtype="PCM_16")
-    export_show(out, starts, beat)
+    if show:
+        export_show(out, starts, beat)
     print(f"out/banquet.wav ({total:.0f} s) ; couplets à " + ", ".join(f"{t:.0f} s" for t in starts))
 
 

@@ -74,7 +74,8 @@ le mixage restent synchrones, quelle que soit la vitesse de calcul. Options : `-
   - chanson transposée de 3 demi-tons plus bas (mi mineur) : `TRANSPOSE` ;
   - 11 convives (8 hommes, 3 femmes), dont deux hommes qui chantent la mélodie à l'octave
     inférieure, aux voix humanisées (désaccord, flou rythmique, un ténor éméché) ;
-  - égalisation du chœur contre le côté nasillard ;
+  - égalisation « claire » des voix : léger creux anti-nasillard à 1,5 kHz, présence vers 3,5 kHz,
+    grave allégé (la première version, trop creusée, sonnait étouffée) ;
   - des ménestrels, des voix CHIMERA eux aussi :
     - une flûte : un enfant sur « du-lu », la mélodie une octave plus haut ;
     - un bourdon de vielle : trois hommes sur « ou », en relais pour respirer ;
