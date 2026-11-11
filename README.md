@@ -74,6 +74,15 @@ le mixage restent synchrones, quelle que soit la vitesse de calcul. Options : `-
   - 11 convives (8 hommes, 3 femmes), dont deux hommes qui chantent la mélodie à l'octave
     inférieure, aux voix humanisées (désaccord, flou rythmique, un ténor éméché) ;
   - égalisation du chœur contre le côté nasillard ;
+  - des ménestrels, des voix CHIMERA eux aussi :
+    - une flûte : un enfant sur « du-lu », la mélodie une octave plus haut ;
+    - un bourdon de vielle : trois hommes sur « ou », en relais pour respirer ;
+    - une viole : la basse fredonnée bouche fermée (`m:NN` du beatbox) ;
+    - un tambourin en beatbox, rendu par tranches de 8 mesures, car le séquenceur temps réel
+      garde au plus 128 pas.
+
+    Ils jouent le refrain en prélude, puis accompagnent toute la chanson. Le flûtiste a sa tête
+    dans le spectacle 3D ;
   - couplets 1 et 3 chantés par les seuls meneurs, enchaînés sans pause ;
   - le banquet dans les refrains : choppes sur « bou-te », gobelets sur « ce verre », cris sur
     les notes tenues, brouhaha parlé par CHIMERA ;

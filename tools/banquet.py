@@ -40,9 +40,24 @@ SINGERS = [
     ("mathieu",    "basse",     0, "male",     7, 0.025, 0.018, 14, -0.80, 0.90, False, None),
 ]
 VERSES = [1, 2, 3, 4]
-INTRO_BEATS, OUTRO = 18, 9.0  # 9 s de banquet avant le chant (à 120), 9 s après
-T0 = 0.3  # le premier temps de la piste (défaut du CLI)
 COUPLET, REFRAIN = 32, 24  # en noires
+BABBLE_BEATS = 10  # 5 s de brouhaha (à 120) avant que les ménestrels n'attaquent
+PRELUDE_BEATS = REFRAIN  # les ménestrels jouent le refrain seuls, puis la tablée entre
+INTRO_BEATS, OUTRO = BABBLE_BEATS + PRELUDE_BEATS, 9.0
+T0 = 0.3  # le premier temps de la piste (défaut du CLI)
+
+# ------------------------------------------------------------------ les ménestrels (des voix aussi)
+# flûte : un enfant chante la mélodie une octave plus haut, articulée « du-lu » comme une flûte à bec,
+#         au prélude et aux refrains (passages ci-dessous : (couplet, passage) ; 0 = le prélude)
+FLUTE_REFRAINS = {0, (1, 1), (2, 1), (3, 1), (4, 0), (4, 1)}
+# bourdon de vielle : des hommes tiennent « ou » sur la tonique et la quinte, en relais pour respirer
+DRONES = [("bourdon-1", 40, 0, -2), ("bourdon-2", 40, 8, 3), ("bourdon-3", 47, 4, -5)]  # nom, midi, décalage (temps), cents
+# viole et tambourin : le séquenceur beatbox de CHIMERA (« m:NN » bouche fermée ; B K t !)
+MINSTREL_GAIN = {"flute": 1.0, "bourdon": 0.33, "viole": 1.15, "tambourin": 1.0}  # sous la tablée (~ -9 dB)
+BEAT_LATENCY = 0.2
+BEAT_CHUNK = 128  # pas par rendu beatbox (BeatPlayer::MAX_STEPS) : 8 mesures à 2/2  # le séquenceur joue chaque pas 0,2 s après son instant (BeatPlayer::HORIZON)
+TABOR_REFRAIN = "B . . . t . t . K . . . t . ! ."  # une mesure à 2/2, en doubles croches
+TABOR_COUPLET = "B . . . . . . . K . . . . . ! ."
 # couplets chantés par les seuls meneurs ; les refrains, toujours par tout le monde
 SOLO_COUPLETS = {1, 3}
 
@@ -101,6 +116,103 @@ def singer_json(s):
     return p
 
 
+def part_notes(part, verse):
+    """(couplet, refrain) d'une voix : listes [midi, temps] de la partition (sans transposition)"""
+    d = json.loads((JSON / f"{part}-couplet{verse}.json").read_text(encoding="utf-8"))
+    couplet, refrain, t = [], [], 0.0
+    for n in d["notes"]:
+        if t < COUPLET - 1e-6:
+            couplet.append(list(n))
+        elif t < COUPLET + REFRAIN - 1e-6:
+            refrain.append(list(n))
+        t += n[1]
+    return couplet, refrain
+
+
+def timeline():
+    """la chanson en sections, en temps depuis T0 : (début, durée, couplet, passage)
+    passage : 'prelude', 'couplet', 0 ou 1 (les deux refrains)"""
+    out, t = [(BABBLE_BEATS, PRELUDE_BEATS, 1, "prelude")], INTRO_BEATS
+    for v in VERSES:
+        out.append((t, COUPLET, v, "couplet")); t += COUPLET
+        for k in (0, 1):
+            out.append((t, REFRAIN, v, k)); t += REFRAIN
+    return out, t
+
+
+def flute_json():
+    """la flûte : la mélodie (soprano) une octave plus haut, au prélude et aux refrains choisis"""
+    sections, end = timeline()
+    notes, t = [], 0.0
+    def rest(b):
+        if notes and notes[-1][0] == 0:
+            notes[-1][1] += b
+        else:
+            notes.append([0, b])
+    for start, length, v, k in sections:
+        rest(start - t) if start > t else None
+        key = 0 if k == "prelude" else (v, k)
+        if k != "couplet" and key in FLUTE_REFRAINS:
+            notes += [[n[0] + TRANSPOSE + 12 if n[0] > 0 else 0, n[1]] for n in part_notes("soprano", 1 if k == "prelude" else v)[1]]
+        else:
+            rest(length)
+        t = start + length
+    # articulation de flûte à bec : « du » en attaque (après un silence, sur une note répétée), « lu » lié,
+    # et une respiration (virgule) après chaque note longue
+    syls, prev = [], 0
+    for i, (m, b) in enumerate(notes):
+        if m <= 0:
+            prev = 0
+            continue
+        s = "du" if prev == 0 or round(prev) == round(m) else "lu"
+        nxt = notes[i + 1][0] if i + 1 < len(notes) else 0
+        syls.append(s + ("," if b >= 2 or nxt <= 0 else ""))
+        prev = m
+    d = {"bpm": 120, "vibrato": 12, "t0": T0, "notes": [[round(m, 3), b] for m, b in notes], "syllables": syls,
+         "words": [s.rstrip(",") for s in syls]}
+    p = REN / "flute.json"
+    p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    return p
+
+
+def drone_json(name, midi, offset, cents):
+    """un bourdon : « ou » tenu par phrases de 4 mesures, décalées d'un chanteur à l'autre"""
+    sections, end = timeline()
+    # tous démarrent avec le prélude ; seul l'endroit où chacun reprend son souffle est décalé
+    notes, t, b = [[0, BABBLE_BEATS]], BABBLE_BEATS, (16 - offset) or 16
+    while t < end + 4:  # (midi : déjà dans le ton chanté, mi mineur)
+        b = min(b, end + 4 - t)
+        notes.append([round(midi + cents / 100, 3), b])
+        t += b
+        b = 16
+    d = {"bpm": 120, "vibrato": 0, "t0": T0, "notes": notes, "syllables": ["ũ,"] * (len(notes) - 1)}
+    p = REN / f"{name}.json"
+    p.write_text(json.dumps(d, ensure_ascii=False), encoding="utf-8")
+    return p
+
+
+def bass_pattern():
+    """la viole : la ligne de basse fredonnée « m:NN », en doubles croches, sur toute la chanson"""
+    sections, end = timeline()
+    steps = ["."] * int(BABBLE_BEATS * 4)
+    for start, length, v, k in sections:
+        couplet, refrain = part_notes("basse", 1 if k == "prelude" else v)
+        for m, b in (couplet if k == "couplet" else refrain):
+            n = int(round(b * 4))
+            steps += ([f"m:{int(round(m + TRANSPOSE))}"] if m > 0 else ["."]) + ["."] * (n - 1)
+    return " ".join(steps)
+
+
+def tabor_pattern():
+    """le tambourin : léger aux couplets, plus fourni au prélude et aux refrains, un coup final"""
+    sections, end = timeline()
+    bars = ["." ] * int(BABBLE_BEATS * 4)
+    for start, length, v, k in sections:
+        bar = TABOR_COUPLET if k == "couplet" else TABOR_REFRAIN
+        bars += (bar.split() * int(length // 4))
+    return " ".join(bars + ["B>", ".", ".", "."])
+
+
 def babble_text(r):
     utts = []
     for _ in range(r.randint(3, 5)):
@@ -120,6 +232,22 @@ def render_all():
         if not wav.exists():
             tele = ["--tele", str(REN / f"{s[0]}.tele")] if s[10] else []
             jobs.append((["render", "notes", str(singer_json(s)), str(wav.with_suffix("")), s[3], *tele], None))
+    # les ménestrels
+    if not (REN / "flute.wav").exists():
+        jobs.append((["render", "notes", str(flute_json()), str(REN / "flute"), "child", "--tele", str(REN / "flute.tele")], None))
+    for name, midi, offset, cents in DRONES:
+        if not (REN / f"{name}.wav").exists():
+            jobs.append((["render", "notes", str(drone_json(name, midi, offset, cents)), str(REN / name), "male"], None))
+    # le séquenceur garde au plus 128 pas (BeatPlayer::MAX_STEPS, fait pour le temps réel) : les grilles
+    # sont rendues par tranches de 8 mesures et recollées au mixage ; une tranche vide est sautée (le CLI
+    # jouerait sinon son rythme par défaut)
+    for name, pattern in (("beat-viole", bass_pattern), ("beat-tambourin", tabor_pattern)):
+        steps = pattern().split()
+        for k in range(0, len(steps), BEAT_CHUNK):
+            chunk = steps[k:k + BEAT_CHUNK]
+            out = REN / name / f"{k // BEAT_CHUNK:03d}"
+            if any(x != "." for x in chunk) and not (out / "pattern.wav").exists():
+                jobs.append((["render", "beatbox", str(out), " ".join(chunk), "male", "120", "1"], None))
     for key, ipa in SHOUTS.items():
         for k, (body, f0) in enumerate(SHOUTERS):
             wav = REN / f"shout-{key}-{k}.wav"
@@ -299,6 +427,20 @@ def mix():
         place(choir, pan(x, p), 0)
     choir = denasal(choir)
 
+    # --- les ménestrels (le pas 0 des grilles beatbox est le temps 0 de la chanson, à T0)
+    prelude = at(T0, BABBLE_BEATS)
+    minstrels = np.zeros((N, 2))
+    place(minstrels, pan(norm(load(REN / "flute.wav"), 0.5), 0.45, MINSTREL_GAIN["flute"]), 0)
+    for name, midi, *_ in DRONES:
+        x = lp(norm(load(REN / f"{name}.wav"), 0.5), 1800)
+        place(minstrels, pan(x, -0.15 if midi == 40 else 0.2, MINSTREL_GAIN["bourdon"] * (1.0 if midi == 40 else 0.6)), 0)
+    for name, p, g in (("beat-viole", -0.35, MINSTREL_GAIN["viole"]), ("beat-tambourin", -0.55, MINSTREL_GAIN["tambourin"])):
+        track = np.zeros(N)
+        for chunk in sorted((REN / name).glob("*/pattern.wav")):
+            place(track[:, None], load(chunk)[:, None], T0 - BEAT_LATENCY + int(chunk.parent.name) * BEAT_CHUNK * beat / 4)
+        place(minstrels, pan(norm(track, 0.5), p, g), 0)
+    minstrels = denasal(minstrels)
+
     def shout(key, t, p=None, g=0.5, k=None):
         k = r.randrange(len(SHOUTERS)) if k is None else k
         x = norm(load(REN / f"shout-{key}-{k}.wav"), g)
@@ -313,11 +455,11 @@ def mix():
             place(dry, pan(thump(r), r.uniform(-0.8, 0.8), g), t + r.uniform(-0.03, 0.04))
 
     # --- avant le chant
-    for _ in range(6):
-        clinks(r.uniform(0.5, starts[0] - 3), 1)
-    shout("hola", 2.2, -0.5)
-    shout("chantons", starts[0] - 3.8, 0.2, 0.65, k=0)
-    shout("hourra", starts[0] - 2.4, 0.6, 0.4); shout("hourra", starts[0] - 2.25, -0.6, 0.4)
+    for _ in range(5):
+        clinks(r.uniform(0.5, prelude - 1.5), 1)
+    shout("hola", 1.0, -0.5)
+    shout("chantons", prelude - 2.6, 0.2, 0.65, k=0)  # … et les ménestrels attaquent le refrain
+    shout("hourra", starts[0] - 1.6, 0.6, 0.4); shout("hourra", starts[0] - 1.45, -0.6, 0.4)  # la tablée entre
 
     # --- le banquet dans les refrains (temps en noires depuis le début du refrain) :
     #   0 « L'eau ne fait rien que » · 4 « pour-rir le pou- » · 6 « mon, » (tenu)
@@ -362,7 +504,7 @@ def mix():
             place(bab, pan(x, p), t)
             t += len(x) / SR + r.uniform(0.5, 3)
     bab = denasal(lp(bab, 3200))
-    pts = [(0, 0.0), (0.8, 1.0), (starts[0] - 2.5, 1.0), (starts[0] - 0.6, 0.10)]
+    pts = [(0, 0.0), (0.8, 1.0), (prelude - 0.8, 1.0), (prelude + 1.5, 0.3), (starts[0] - 0.8, 0.3)]
     for v, T in zip(VERSES, starts):
         c_end = at(T, COUPLET)
         pts += [(T + 0.5, 0.05), (c_end - 0.5, 0.05), (c_end + 1.0, 0.16), (at(c_end, 2 * REFRAIN) - 0.6, 0.16)]
@@ -374,9 +516,9 @@ def mix():
 
     # --- la salle
     ir = hall_ir()
-    src = choir + dry + amb * 0.9
+    src = choir + minstrels + dry + amb * 0.9
     wet = np.stack([fftconvolve(src[:, c], ir[:, c])[:N] for c in range(2)], axis=1)
-    out = (choir + dry) * 0.75 + amb * 0.35 + wet * 0.45
+    out = (choir + minstrels + dry) * 0.75 + amb * 0.35 + wet * 0.45
     out = hp(out, 40)
     out *= env_gain(N, [(0, 0), (1.0, 1), (total - 2.5, 1), (total, 0)])[:, None]
     out = norm(out, 0.89)
@@ -387,11 +529,13 @@ def mix():
 
 
 def export_show(out, starts, beat):
-    """la page Duet de CHIMERA : les quatre meneurs en 3D sur le mixage"""
+    """la page Duet de CHIMERA : le flûtiste et les quatre meneurs en 3D sur le mixage"""
     d = ROOT / "chimera" / "public" / "shows" / "banquet"
     d.mkdir(parents=True, exist_ok=True)
     sf.write(str(d / "banquet.wav"), out.astype(np.float32), SR, subtype="PCM_16")
-    voices = []
+    shutil.copy(REN / "flute.tele", d / "flute.tele")
+    shutil.copy(REN / "flute.json", d / "flute.json")
+    voices = [{"name": "Le petit flûtiste", "tele": "flute.tele", "melody": "flute.json"}]
     for s in SINGERS:
         if s[10]:
             shutil.copy(REN / f"{s[0]}.tele", d / f"{s[0]}.tele")
